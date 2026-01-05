@@ -5,14 +5,35 @@ A beautiful interface to fetch and download football statistics for Europe's top
 """
 
 from flask import Flask, render_template, request, Response, jsonify, stream_with_context
-import soccerdata as sd
-import pandas as pd
 from io import StringIO
 import json
 import time
 import os
 
+# Lazy load heavy modules
+_sd = None
+_pd = None
+
+def get_soccerdata():
+    global _sd
+    if _sd is None:
+        import soccerdata as sd
+        _sd = sd
+    return _sd
+
+def get_pandas():
+    global _pd
+    if _pd is None:
+        import pandas as pd
+        _pd = pd
+    return _pd
+
 app = Flask(__name__)
+
+# Health check endpoint
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok", "message": "Server is running"})
 
 # League identifiers for soccerdata
 LEAGUES = {
@@ -86,15 +107,16 @@ DATA_TYPES = {
 }
 
 
-def get_fbref_scraper(leagues: list[str], seasons: list[str]) -> sd.FBref:
+def get_fbref_scraper(leagues: list[str], seasons: list[str]):
     """Create an FBref scraper instance."""
     league_ids = [LEAGUES[lg]["id"] for lg in leagues if lg in LEAGUES]
     if not league_ids:
         raise ValueError("No valid leagues provided")
+    sd = get_soccerdata()
     return sd.FBref(leagues=league_ids, seasons=seasons)
 
 
-def fetch_data(data_type: str, leagues: list[str], seasons: list[str], stat_type: str = None, teams: list[str] = None) -> pd.DataFrame:
+def fetch_data(data_type: str, leagues: list[str], seasons: list[str], stat_type: str = None, teams: list[str] = None):
     """Fetch data based on parameters."""
     fbref = get_fbref_scraper(leagues, seasons)
     
@@ -116,7 +138,7 @@ def fetch_data(data_type: str, leagues: list[str], seasons: list[str], stat_type
     return df
 
 
-def filter_by_teams(df: pd.DataFrame, teams: list[str]) -> pd.DataFrame:
+def filter_by_teams(df, teams: list[str]):
     """Filter DataFrame by team names."""
     if df.index.names and 'team' in df.index.names:
         # Team is in the index
@@ -193,6 +215,7 @@ def preview_data():
         df = fetch_data(data_type, leagues, seasons, stat_type, teams if teams else None)
         
         # Flatten multi-level columns for display
+        pd = get_pandas()
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = [' - '.join(col).strip(' - ') for col in df.columns.values]
         
@@ -227,6 +250,7 @@ def download_data():
         df = fetch_data(data_type, leagues, seasons, stat_type, teams if teams else None)
         
         # Flatten multi-level columns
+        pd = get_pandas()
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = [' - '.join(col).strip(' - ') for col in df.columns.values]
         
@@ -296,6 +320,7 @@ def fetch_with_progress():
             yield f"data: {json.dumps({'stage': 'format', 'progress': 85, 'message': 'Formatting results...'})}\n\n"
             
             # Flatten multi-level columns
+            pd = get_pandas()
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = [' - '.join(col).strip(' - ') for col in df.columns.values]
             
