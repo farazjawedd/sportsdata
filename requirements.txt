@@ -2,4 +2,5 @@ soccerdata>=1.6.0
 pandas>=2.0.0
 flask>=3.0.0
 setuptools>=65.0.0
+gunicorn>=21.0.0
 
