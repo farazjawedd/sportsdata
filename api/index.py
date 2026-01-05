@@ -3,6 +3,15 @@
 Football Stats Web App - Vercel Serverless Entry Point
 """
 
+import os
+
+# Configure soccerdata to use /tmp for cache (Vercel's writable directory)
+os.environ["SOCCERDATA_DIR"] = "/tmp/soccerdata"
+
+# Create the directory if it doesn't exist
+os.makedirs("/tmp/soccerdata/data", exist_ok=True)
+os.makedirs("/tmp/soccerdata/config", exist_ok=True)
+
 from flask import Flask, request, Response, jsonify
 import json
 import traceback
@@ -12,11 +21,36 @@ app = Flask(__name__)
 
 # League identifiers for soccerdata
 LEAGUES = {
-    "epl": {"name": "Premier League", "country": "England", "id": "ENG-Premier League", "flag": "🏴󠁧󠁢󠁥󠁮󠁧󠁿"},
-    "laliga": {"name": "La Liga", "country": "Spain", "id": "ESP-La Liga", "flag": "🇪🇸"},
-    "bundesliga": {"name": "Bundesliga", "country": "Germany", "id": "GER-Bundesliga", "flag": "🇩🇪"},
-    "seriea": {"name": "Serie A", "country": "Italy", "id": "ITA-Serie A", "flag": "🇮🇹"},
-    "ligue1": {"name": "Ligue 1", "country": "France", "id": "FRA-Ligue 1", "flag": "🇫🇷"},
+    "epl": {
+        "name": "Premier League",
+        "country": "England",
+        "id": "ENG-Premier League",
+        "flag": "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    },
+    "laliga": {
+        "name": "La Liga",
+        "country": "Spain",
+        "id": "ESP-La Liga",
+        "flag": "🇪🇸",
+    },
+    "bundesliga": {
+        "name": "Bundesliga",
+        "country": "Germany",
+        "id": "GER-Bundesliga",
+        "flag": "🇩🇪",
+    },
+    "seriea": {
+        "name": "Serie A",
+        "country": "Italy",
+        "id": "ITA-Serie A",
+        "flag": "🇮🇹",
+    },
+    "ligue1": {
+        "name": "Ligue 1",
+        "country": "France",
+        "id": "FRA-Ligue 1",
+        "flag": "🇫🇷",
+    },
 }
 
 SEASONS = [
@@ -32,50 +66,138 @@ DATA_TYPES = {
         "name": "Team Season Stats",
         "description": "Aggregated team statistics for the entire season",
         "stats": [
-            {"value": "standard", "label": "Standard Stats", "desc": "Goals, assists, xG, possession"},
-            {"value": "shooting", "label": "Shooting", "desc": "Shots, shot accuracy, goals per shot"},
-            {"value": "passing", "label": "Passing", "desc": "Pass completion, progressive passes"},
-            {"value": "passing_types", "label": "Pass Types", "desc": "Crosses, through balls, switches"},
-            {"value": "goal_shot_creation", "label": "Shot Creation", "desc": "SCA, GCA actions"},
-            {"value": "defense", "label": "Defense", "desc": "Tackles, interceptions, blocks"},
-            {"value": "possession", "label": "Possession", "desc": "Touches, carries, dribbles"},
-            {"value": "misc", "label": "Miscellaneous", "desc": "Cards, fouls, aerials"},
-        ]
+            {
+                "value": "standard",
+                "label": "Standard Stats",
+                "desc": "Goals, assists, xG, possession",
+            },
+            {
+                "value": "shooting",
+                "label": "Shooting",
+                "desc": "Shots, shot accuracy, goals per shot",
+            },
+            {
+                "value": "passing",
+                "label": "Passing",
+                "desc": "Pass completion, progressive passes",
+            },
+            {
+                "value": "passing_types",
+                "label": "Pass Types",
+                "desc": "Crosses, through balls, switches",
+            },
+            {
+                "value": "goal_shot_creation",
+                "label": "Shot Creation",
+                "desc": "SCA, GCA actions",
+            },
+            {
+                "value": "defense",
+                "label": "Defense",
+                "desc": "Tackles, interceptions, blocks",
+            },
+            {
+                "value": "possession",
+                "label": "Possession",
+                "desc": "Touches, carries, dribbles",
+            },
+            {
+                "value": "misc",
+                "label": "Miscellaneous",
+                "desc": "Cards, fouls, aerials",
+            },
+        ],
     },
     "player": {
         "name": "Player Season Stats",
         "description": "Individual player statistics aggregated over the season",
         "stats": [
-            {"value": "standard", "label": "Standard Stats", "desc": "Goals, assists, minutes played"},
-            {"value": "shooting", "label": "Shooting", "desc": "Shots, xG, shot distance"},
-            {"value": "passing", "label": "Passing", "desc": "Pass completion, key passes"},
-            {"value": "passing_types", "label": "Pass Types", "desc": "Crosses, through balls"},
-            {"value": "goal_shot_creation", "label": "Shot Creation", "desc": "SCA, GCA per 90"},
-            {"value": "defense", "label": "Defense", "desc": "Tackles, pressures, blocks"},
-            {"value": "possession", "label": "Possession", "desc": "Touches, dribbles, carries"},
-            {"value": "playing_time", "label": "Playing Time", "desc": "Minutes, starts, subs"},
-            {"value": "misc", "label": "Miscellaneous", "desc": "Cards, fouls, recoveries"},
-            {"value": "keeper", "label": "Goalkeeper", "desc": "Saves, clean sheets, GA"},
-            {"value": "keeper_adv", "label": "GK Advanced", "desc": "PSxG, crosses, sweeper"},
-        ]
+            {
+                "value": "standard",
+                "label": "Standard Stats",
+                "desc": "Goals, assists, minutes played",
+            },
+            {
+                "value": "shooting",
+                "label": "Shooting",
+                "desc": "Shots, xG, shot distance",
+            },
+            {
+                "value": "passing",
+                "label": "Passing",
+                "desc": "Pass completion, key passes",
+            },
+            {
+                "value": "passing_types",
+                "label": "Pass Types",
+                "desc": "Crosses, through balls",
+            },
+            {
+                "value": "goal_shot_creation",
+                "label": "Shot Creation",
+                "desc": "SCA, GCA per 90",
+            },
+            {
+                "value": "defense",
+                "label": "Defense",
+                "desc": "Tackles, pressures, blocks",
+            },
+            {
+                "value": "possession",
+                "label": "Possession",
+                "desc": "Touches, dribbles, carries",
+            },
+            {
+                "value": "playing_time",
+                "label": "Playing Time",
+                "desc": "Minutes, starts, subs",
+            },
+            {
+                "value": "misc",
+                "label": "Miscellaneous",
+                "desc": "Cards, fouls, recoveries",
+            },
+            {
+                "value": "keeper",
+                "label": "Goalkeeper",
+                "desc": "Saves, clean sheets, GA",
+            },
+            {
+                "value": "keeper_adv",
+                "label": "GK Advanced",
+                "desc": "PSxG, crosses, sweeper",
+            },
+        ],
     },
     "schedule": {
         "name": "Match Schedule",
         "description": "Match fixtures, results, and scores",
-        "stats": []
+        "stats": [],
     },
     "player_match": {
         "name": "Player Match Stats",
         "description": "Individual player stats for each match",
         "stats": [
-            {"value": "summary", "label": "Summary", "desc": "Overall match performance"},
+            {
+                "value": "summary",
+                "label": "Summary",
+                "desc": "Overall match performance",
+            },
             {"value": "passing", "label": "Passing", "desc": "Pass stats per match"},
-            {"value": "passing_types", "label": "Pass Types", "desc": "Pass type breakdown"},
+            {
+                "value": "passing_types",
+                "label": "Pass Types",
+                "desc": "Pass type breakdown",
+            },
             {"value": "defense", "label": "Defense", "desc": "Defensive actions"},
-            {"value": "possession", "label": "Possession", "desc": "Ball control stats"},
+            {
+                "value": "possession",
+                "label": "Possession",
+                "desc": "Ball control stats",
+            },
             {"value": "misc", "label": "Miscellaneous", "desc": "Cards, fouls"},
             {"value": "keeper", "label": "Goalkeeper", "desc": "GK stats per match"},
-        ]
+        ],
     },
 }
 
@@ -84,40 +206,46 @@ _FBref = None
 _pd = None
 _import_error = None
 
+
 def get_fbref_class():
     global _FBref, _import_error
     if _FBref is None and _import_error is None:
         try:
             # Try direct import first
             from soccerdata import FBref
+
             _FBref = FBref
         except ImportError as e1:
             try:
                 # Fallback: try importing the module differently
                 from soccerdata.fbref import FBref
+
                 _FBref = FBref
             except ImportError as e2:
                 try:
                     # Another fallback
                     import soccerdata
+
                     _FBref = soccerdata.FBref
                 except Exception as e3:
                     _import_error = f"Failed to import FBref: {e1}, {e2}, {e3}"
-    
+
     if _import_error:
         raise ImportError(_import_error)
     return _FBref
+
 
 def get_pandas():
     global _pd
     if _pd is None:
         import pandas as pd
+
         _pd = pd
     return _pd
 
 
 # HTML Template (embedded for Vercel)
-HTML_TEMPLATE = '''<!DOCTYPE html>
+HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -756,7 +884,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         }
     </script>
 </body>
-</html>'''
+</html>"""
 
 
 def get_fbref_scraper(leagues, seasons):
@@ -769,21 +897,21 @@ def get_fbref_scraper(leagues, seasons):
 
 def filter_by_teams(df, teams):
     pd = get_pandas()
-    if df.index.names and 'team' in df.index.names:
+    if df.index.names and "team" in df.index.names:
         df = df.reset_index()
-        df = df[df['team'].isin(teams)]
+        df = df[df["team"].isin(teams)]
         return df
-    elif 'team' in df.columns:
-        return df[df['team'].isin(teams)]
-    elif 'home_team' in df.columns and 'away_team' in df.columns:
-        return df[(df['home_team'].isin(teams)) | (df['away_team'].isin(teams))]
+    elif "team" in df.columns:
+        return df[df["team"].isin(teams)]
+    elif "home_team" in df.columns and "away_team" in df.columns:
+        return df[(df["home_team"].isin(teams)) | (df["away_team"].isin(teams))]
     return df
 
 
 def fetch_data(data_type, leagues, seasons, stat_type=None, teams=None):
     pd = get_pandas()
     fbref = get_fbref_scraper(leagues, seasons)
-    
+
     if data_type == "team":
         df = fbref.read_team_season_stats(stat_type=stat_type or "standard")
     elif data_type == "player":
@@ -794,21 +922,19 @@ def fetch_data(data_type, leagues, seasons, stat_type=None, teams=None):
         df = fbref.read_player_match_stats(stat_type=stat_type or "summary")
     else:
         raise ValueError(f"Unknown data type: {data_type}")
-    
+
     if teams and len(teams) > 0:
         df = filter_by_teams(df, teams)
-    
+
     return df
 
 
 @app.route("/")
 def index():
-    html = HTML_TEMPLATE.replace(
-        'LEAGUES_DATA', json.dumps(LEAGUES)
-    ).replace(
-        'SEASONS_DATA', json.dumps(SEASONS)
-    ).replace(
-        'DATA_TYPES_DATA', json.dumps(DATA_TYPES)
+    html = (
+        HTML_TEMPLATE.replace("LEAGUES_DATA", json.dumps(LEAGUES))
+        .replace("SEASONS_DATA", json.dumps(SEASONS))
+        .replace("DATA_TYPES_DATA", json.dumps(DATA_TYPES))
     )
     return html
 
@@ -817,19 +943,19 @@ def index():
 def get_teams():
     league = request.args.get("league", "epl")
     season = request.args.get("season", "2324")
-    
+
     try:
         pd = get_pandas()
         fbref = get_fbref_scraper([league], [season])
         df = fbref.read_team_season_stats(stat_type="standard")
-        
-        if df.index.names and 'team' in df.index.names:
-            teams = df.index.get_level_values('team').unique().tolist()
-        elif 'team' in df.columns:
-            teams = df['team'].unique().tolist()
+
+        if df.index.names and "team" in df.index.names:
+            teams = df.index.get_level_values("team").unique().tolist()
+        elif "team" in df.columns:
+            teams = df["team"].unique().tolist()
         else:
             teams = []
-        
+
         return jsonify({"teams": sorted(teams)})
     except Exception as e:
         return jsonify({"teams": [], "error": str(e)})
@@ -845,27 +971,37 @@ def preview_data():
         data_type = data.get("data_type", "team")
         stat_type = data.get("stat_type", "standard")
         teams = data.get("teams", [])
-        
-        df = fetch_data(data_type, leagues, seasons, stat_type, teams if teams else None)
-        
+
+        df = fetch_data(
+            data_type, leagues, seasons, stat_type, teams if teams else None
+        )
+
         if isinstance(df.columns, pd.MultiIndex):
-            df.columns = [' - '.join(str(c) for c in col).strip(' - ') for col in df.columns.values]
-        
+            df.columns = [
+                " - ".join(str(c) for c in col).strip(" - ")
+                for col in df.columns.values
+            ]
+
         df = df.reset_index()
-        
+
         preview = df.head(20).to_dict(orient="records")
         columns = list(df.columns)
-        
-        return jsonify({
-            "success": True,
-            "preview": preview,
-            "columns": columns,
-            "total_rows": len(df),
-            "total_cols": len(columns)
-        })
+
+        return jsonify(
+            {
+                "success": True,
+                "preview": preview,
+                "columns": columns,
+                "total_rows": len(df),
+                "total_cols": len(columns),
+            }
+        )
     except Exception as e:
         error_details = traceback.format_exc()
-        return jsonify({"success": False, "error": str(e), "details": error_details}), 400
+        return (
+            jsonify({"success": False, "error": str(e), "details": error_details}),
+            400,
+        )
 
 
 @app.route("/api/download", methods=["POST"])
@@ -873,46 +1009,56 @@ def download_data():
     try:
         pd = get_pandas()
         from io import StringIO
-        
+
         data = request.json
         leagues = data.get("leagues", ["epl"])
         seasons = data.get("seasons", ["2324"])
         data_type = data.get("data_type", "team")
         stat_type = data.get("stat_type", "standard")
         teams = data.get("teams", [])
-        
-        df = fetch_data(data_type, leagues, seasons, stat_type, teams if teams else None)
-        
+
+        df = fetch_data(
+            data_type, leagues, seasons, stat_type, teams if teams else None
+        )
+
         if isinstance(df.columns, pd.MultiIndex):
-            df.columns = [' - '.join(str(c) for c in col).strip(' - ') for col in df.columns.values]
-        
+            df.columns = [
+                " - ".join(str(c) for c in col).strip(" - ")
+                for col in df.columns.values
+            ]
+
         df = df.reset_index()
-        
+
         leagues_str = "_".join(leagues)
         seasons_str = "_".join(seasons)
-        stat_str = f"_{stat_type}" if data_type in ["team", "player", "player_match"] else ""
+        stat_str = (
+            f"_{stat_type}" if data_type in ["team", "player", "player_match"] else ""
+        )
         teams_str = f"_{'_'.join(teams[:2])}" if teams else ""
         filename = f"{data_type}_{leagues_str}_{seasons_str}{stat_str}{teams_str}.csv"
-        
+
         output = StringIO()
         df.to_csv(output, index=False)
         csv_content = output.getvalue()
-        
+
         return Response(
             csv_content,
             mimetype="text/csv",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
         )
     except Exception as e:
         error_details = traceback.format_exc()
-        return jsonify({"success": False, "error": str(e), "details": error_details}), 400
+        return (
+            jsonify({"success": False, "error": str(e), "details": error_details}),
+            400,
+        )
 
 
 @app.route("/api/health", methods=["GET"])
 def health():
     """Health check endpoint to test if the function is working."""
     status = {"status": "ok", "python_version": sys.version}
-    
+
     # Test soccerdata import
     try:
         FBref = get_fbref_class()
@@ -920,22 +1066,29 @@ def health():
         status["fbref_class"] = str(FBref)
     except Exception as e:
         status["soccerdata"] = f"error: {str(e)}"
-    
+
     # Test pandas import
     try:
         pd = get_pandas()
         status["pandas"] = f"ok - {pd.__version__}"
     except Exception as e:
         status["pandas"] = f"error: {str(e)}"
-    
+
     # List installed packages
     try:
         import pkg_resources
+
         installed = [f"{p.key}=={p.version}" for p in pkg_resources.working_set]
-        status["installed_packages"] = sorted([p for p in installed if any(x in p for x in ['soccer', 'pandas', 'lxml', 'requests'])])
+        status["installed_packages"] = sorted(
+            [
+                p
+                for p in installed
+                if any(x in p for x in ["soccer", "pandas", "lxml", "requests"])
+            ]
+        )
     except:
         pass
-    
+
     return jsonify(status)
 
 
