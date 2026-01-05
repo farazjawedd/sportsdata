@@ -6,11 +6,25 @@ Football Stats Web App - Vercel Serverless Entry Point
 import os
 
 # Configure soccerdata to use /tmp for cache (Vercel's writable directory)
-os.environ["SOCCERDATA_DIR"] = "/tmp/soccerdata"
+# Must be set BEFORE importing soccerdata
+SOCCERDATA_DIR = "/tmp/soccerdata"
+os.environ["SOCCERDATA_DIR"] = SOCCERDATA_DIR
 
-# Create the directory if it doesn't exist
-os.makedirs("/tmp/soccerdata/data", exist_ok=True)
-os.makedirs("/tmp/soccerdata/config", exist_ok=True)
+# Create all necessary directories
+for subdir in ["data", "data/FBref", "config", "logs"]:
+    os.makedirs(os.path.join(SOCCERDATA_DIR, subdir), exist_ok=True)
+
+# Create empty config files that soccerdata expects
+config_files = {
+    "config/teamname_replacements.json": "{}",
+    "config/league_dict.json": "{}",
+}
+
+for filepath, content in config_files.items():
+    full_path = os.path.join(SOCCERDATA_DIR, filepath)
+    if not os.path.exists(full_path):
+        with open(full_path, "w") as f:
+            f.write(content)
 
 from flask import Flask, request, Response, jsonify
 import json
