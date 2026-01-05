@@ -79,16 +79,34 @@ DATA_TYPES = {
     },
 }
 
-# Lazy load soccerdata to improve cold start
-_sd = None
+# Lazy load modules to improve cold start
+_FBref = None
 _pd = None
+_import_error = None
 
-def get_soccerdata():
-    global _sd
-    if _sd is None:
-        import soccerdata as sd
-        _sd = sd
-    return _sd
+def get_fbref_class():
+    global _FBref, _import_error
+    if _FBref is None and _import_error is None:
+        try:
+            # Try direct import first
+            from soccerdata import FBref
+            _FBref = FBref
+        except ImportError as e1:
+            try:
+                # Fallback: try importing the module differently
+                from soccerdata.fbref import FBref
+                _FBref = FBref
+            except ImportError as e2:
+                try:
+                    # Another fallback
+                    import soccerdata
+                    _FBref = soccerdata.FBref
+                except Exception as e3:
+                    _import_error = f"Failed to import FBref: {e1}, {e2}, {e3}"
+    
+    if _import_error:
+        raise ImportError(_import_error)
+    return _FBref
 
 def get_pandas():
     global _pd
@@ -742,11 +760,11 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
 
 
 def get_fbref_scraper(leagues, seasons):
-    sd = get_soccerdata()
+    FBref = get_fbref_class()
     league_ids = [LEAGUES[lg]["id"] for lg in leagues if lg in LEAGUES]
     if not league_ids:
         raise ValueError("No valid leagues provided")
-    return sd.FBref(leagues=league_ids, seasons=seasons)
+    return FBref(leagues=league_ids, seasons=seasons)
 
 
 def filter_by_teams(df, teams):
@@ -893,11 +911,32 @@ def download_data():
 @app.route("/api/health", methods=["GET"])
 def health():
     """Health check endpoint to test if the function is working."""
-    return jsonify({
-        "status": "ok",
-        "python_version": sys.version,
-        "message": "Server is running"
-    })
+    status = {"status": "ok", "python_version": sys.version}
+    
+    # Test soccerdata import
+    try:
+        FBref = get_fbref_class()
+        status["soccerdata"] = "ok"
+        status["fbref_class"] = str(FBref)
+    except Exception as e:
+        status["soccerdata"] = f"error: {str(e)}"
+    
+    # Test pandas import
+    try:
+        pd = get_pandas()
+        status["pandas"] = f"ok - {pd.__version__}"
+    except Exception as e:
+        status["pandas"] = f"error: {str(e)}"
+    
+    # List installed packages
+    try:
+        import pkg_resources
+        installed = [f"{p.key}=={p.version}" for p in pkg_resources.working_set]
+        status["installed_packages"] = sorted([p for p in installed if any(x in p for x in ['soccer', 'pandas', 'lxml', 'requests'])])
+    except:
+        pass
+    
+    return jsonify(status)
 
 
 # For local development
