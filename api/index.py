@@ -3,12 +3,10 @@
 Football Stats Web App - Vercel Serverless Entry Point
 """
 
-from flask import Flask, render_template_string, request, Response, jsonify
-import soccerdata as sd
-import pandas as pd
-from io import StringIO
+from flask import Flask, request, Response, jsonify
 import json
-import os
+import traceback
+import sys
 
 app = Flask(__name__)
 
@@ -80,6 +78,25 @@ DATA_TYPES = {
         ]
     },
 }
+
+# Lazy load soccerdata to improve cold start
+_sd = None
+_pd = None
+
+def get_soccerdata():
+    global _sd
+    if _sd is None:
+        import soccerdata as sd
+        _sd = sd
+    return _sd
+
+def get_pandas():
+    global _pd
+    if _pd is None:
+        import pandas as pd
+        _pd = pd
+    return _pd
+
 
 # HTML Template (embedded for Vercel)
 HTML_TEMPLATE = '''<!DOCTYPE html>
@@ -354,6 +371,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         footer { text-align: center; padding: 3rem 0; color: var(--text-muted); font-size: 0.85rem; }
         footer a { color: var(--accent-primary); text-decoration: none; }
         footer a:hover { text-decoration: underline; }
+        .warning-banner { background: rgba(255, 170, 0, 0.1); border: 1px solid var(--warning); border-radius: 12px; padding: 1rem; margin-bottom: 2rem; text-align: center; color: var(--warning); }
     </style>
 </head>
 <body>
@@ -365,11 +383,14 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             </div>
             <p class="subtitle">Fetch and download comprehensive statistics for Europe's top 5 leagues</p>
         </header>
+        <div class="warning-banner">
+            ⚠️ <strong>Note:</strong> Large requests may timeout on serverless. For best results, select only 1 league and 1 season at a time.
+        </div>
         <div class="main-grid">
             <div class="section">
                 <div class="section-header">
                     <span class="section-number">1</span>
-                    <span class="section-title">Select Leagues</span>
+                    <span class="section-title">Select League</span>
                     <span class="section-subtitle" id="leagueCount">0 selected</span>
                 </div>
                 <div class="league-grid" id="leagueGrid"></div>
@@ -377,7 +398,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             <div class="section">
                 <div class="section-header">
                     <span class="section-number">2</span>
-                    <span class="section-title">Select Seasons</span>
+                    <span class="section-title">Select Season</span>
                     <span class="section-subtitle" id="seasonCount">0 selected</span>
                 </div>
                 <div class="season-grid" id="seasonGrid"></div>
@@ -518,20 +539,20 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         }
 
         function selectLeague(league) {
-            const card = document.querySelector(`.league-card[data-league="${league}"]`);
-            const index = state.leagues.indexOf(league);
-            if (index > -1) { state.leagues.splice(index, 1); card.classList.remove('selected'); }
-            else { state.leagues.push(league); card.classList.add('selected'); }
-            document.getElementById('leagueCount').textContent = `${state.leagues.length} selected`;
+            // Only allow single selection for serverless
+            state.leagues = [league];
+            document.querySelectorAll('.league-card').forEach(c => c.classList.remove('selected'));
+            document.querySelector(`.league-card[data-league="${league}"]`).classList.add('selected');
+            document.getElementById('leagueCount').textContent = '1 selected';
             loadTeams();
         }
 
         function selectSeason(season) {
-            const pill = document.querySelector(`.season-pill[data-season="${season}"]`);
-            const index = state.seasons.indexOf(season);
-            if (index > -1) { state.seasons.splice(index, 1); pill.classList.remove('selected'); }
-            else { state.seasons.push(season); pill.classList.add('selected'); }
-            document.getElementById('seasonCount').textContent = `${state.seasons.length} selected`;
+            // Only allow single selection for serverless
+            state.seasons = [season];
+            document.querySelectorAll('.season-pill').forEach(c => c.classList.remove('selected'));
+            document.querySelector(`.season-pill[data-season="${season}"]`).classList.add('selected');
+            document.getElementById('seasonCount').textContent = '1 selected';
             loadTeams();
         }
 
@@ -548,10 +569,13 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             try {
                 const response = await fetch(`/api/teams?league=${state.leagues[0]}&season=${state.seasons[0]}`);
                 const data = await response.json();
-                state.availableTeams = data.teams; state.teams = [];
+                if (data.error) throw new Error(data.error);
+                state.availableTeams = data.teams || []; state.teams = [];
                 renderTeams();
                 clearBtn.style.display = state.availableTeams.length > 0 ? 'block' : 'none';
-            } catch (error) { teamGrid.innerHTML = '<p class="team-loading">Failed to load teams</p>'; }
+            } catch (error) { 
+                teamGrid.innerHTML = '<p class="team-loading">Failed to load teams: ' + error.message + '</p>'; 
+            }
         }
 
         function renderTeams(filter = '') {
@@ -628,15 +652,14 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
 
         async function previewData() {
             if (state.leagues.length === 0 || state.seasons.length === 0 || !state.dataType) {
-                alert('Please select at least one league, one season, and a data type'); return;
+                alert('Please select a league, season, and data type'); return;
             }
             showProgress();
             document.getElementById('errorMessage').classList.remove('active');
             document.getElementById('progressSection').scrollIntoView({ behavior: 'smooth' });
             
-            // Simulate progress stages
             updateProgress(10, 'Initializing...', 'init');
-            await new Promise(r => setTimeout(r, 300));
+            await new Promise(r => setTimeout(r, 200));
             updateProgress(25, 'Connecting to FBref...', 'connect');
             
             try {
@@ -677,7 +700,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
 
         async function downloadData() {
             if (state.leagues.length === 0 || state.seasons.length === 0 || !state.dataType) {
-                alert('Please select at least one league, one season, and a data type'); return;
+                alert('Please select a league, season, and data type'); return;
             }
             const btn = document.getElementById('downloadBtn');
             btn.disabled = true; btn.innerHTML = '<span>⏳</span> Preparing...';
@@ -718,7 +741,8 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
 </html>'''
 
 
-def get_fbref_scraper(leagues: list, seasons: list):
+def get_fbref_scraper(leagues, seasons):
+    sd = get_soccerdata()
     league_ids = [LEAGUES[lg]["id"] for lg in leagues if lg in LEAGUES]
     if not league_ids:
         raise ValueError("No valid leagues provided")
@@ -726,6 +750,7 @@ def get_fbref_scraper(leagues: list, seasons: list):
 
 
 def filter_by_teams(df, teams):
+    pd = get_pandas()
     if df.index.names and 'team' in df.index.names:
         df = df.reset_index()
         df = df[df['team'].isin(teams)]
@@ -738,6 +763,7 @@ def filter_by_teams(df, teams):
 
 
 def fetch_data(data_type, leagues, seasons, stat_type=None, teams=None):
+    pd = get_pandas()
     fbref = get_fbref_scraper(leagues, seasons)
     
     if data_type == "team":
@@ -775,6 +801,7 @@ def get_teams():
     season = request.args.get("season", "2324")
     
     try:
+        pd = get_pandas()
         fbref = get_fbref_scraper([league], [season])
         df = fbref.read_team_season_stats(stat_type="standard")
         
@@ -793,6 +820,7 @@ def get_teams():
 @app.route("/api/preview", methods=["POST"])
 def preview_data():
     try:
+        pd = get_pandas()
         data = request.json
         leagues = data.get("leagues", ["epl"])
         seasons = data.get("seasons", ["2324"])
@@ -818,12 +846,16 @@ def preview_data():
             "total_cols": len(columns)
         })
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 400
+        error_details = traceback.format_exc()
+        return jsonify({"success": False, "error": str(e), "details": error_details}), 400
 
 
 @app.route("/api/download", methods=["POST"])
 def download_data():
     try:
+        pd = get_pandas()
+        from io import StringIO
+        
         data = request.json
         leagues = data.get("leagues", ["epl"])
         seasons = data.get("seasons", ["2324"])
@@ -854,9 +886,20 @@ def download_data():
             headers={"Content-Disposition": f"attachment; filename={filename}"}
         )
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 400
+        error_details = traceback.format_exc()
+        return jsonify({"success": False, "error": str(e), "details": error_details}), 400
 
 
-# Vercel handler
-app = app
+@app.route("/api/health", methods=["GET"])
+def health():
+    """Health check endpoint to test if the function is working."""
+    return jsonify({
+        "status": "ok",
+        "python_version": sys.version,
+        "message": "Server is running"
+    })
 
+
+# For local development
+if __name__ == "__main__":
+    app.run(debug=True, port=5050)
