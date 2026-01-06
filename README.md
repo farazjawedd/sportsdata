@@ -220,3 +220,4 @@ Set these in your Vercel dashboard under Project Settings → Environment Variab
 | **Fly.io** | `fly launch` | Global edge deployment |
 | **Heroku** | `git push heroku main` | Classic PaaS |
 
+# trigger deploy
