@@ -1,20 +1,14 @@
-#!/usr/bin/env python3
-"""
-Football Stats Lab - Streamlit Version
-"""
-
 import streamlit as st
+import soccerdata as sd
 import pandas as pd
 
-# Page config
 st.set_page_config(
     page_title="Football Stats Lab",
     page_icon="⚽",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
-# Custom CSS
+# Custom CSS for dark theme
 st.markdown("""
 <style>
     .stApp {
@@ -28,32 +22,30 @@ st.markdown("""
         color: #00ff88;
         font-size: 3rem;
     }
-    .stButton > button {
-        background: linear-gradient(135deg, #00ff88, #00cc6a);
-        color: #0a0a0f;
-        font-weight: bold;
-        border: none;
-        padding: 0.75rem 2rem;
+    .stat-box {
+        background: #1a1a25;
         border-radius: 10px;
-    }
-    .stSelectbox, .stMultiSelect {
-        background-color: #1a1a25;
+        padding: 1rem;
+        border: 1px solid #2a2a3a;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# League data
+# Header
+st.markdown("<div class='main-header'><h1>⚽ Football Stats Lab</h1></div>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #8888aa;'>Fetch stats for Europe's top 5 leagues</p>", unsafe_allow_html=True)
+
+# League options
 LEAGUES = {
-    "ENG-Premier League": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League",
-    "ESP-La Liga": "🇪🇸 La Liga", 
-    "GER-Bundesliga": "🇩🇪 Bundesliga",
-    "ITA-Serie A": "🇮🇹 Serie A",
-    "FRA-Ligue 1": "🇫🇷 Ligue 1",
+    "Premier League 🏴󠁧󠁢󠁥󠁮󠁧󠁿": "ENG-Premier League",
+    "La Liga 🇪🇸": "ESP-La Liga",
+    "Bundesliga 🇩🇪": "GER-Bundesliga",
+    "Serie A 🇮🇹": "ITA-Serie A",
+    "Ligue 1 🇫🇷": "FRA-Ligue 1",
 }
 
-SEASONS = ["2425", "2324", "2223", "2122", "2021"]
+SEASONS = ["2324", "2223", "2122", "2021"]
 SEASON_LABELS = {
-    "2425": "2024-25",
     "2324": "2023-24",
     "2223": "2022-23",
     "2122": "2021-22",
@@ -61,161 +53,138 @@ SEASON_LABELS = {
 }
 
 STAT_TYPES = {
-    "team": ["standard", "shooting", "passing", "passing_types", "goal_shot_creation", "defense", "possession", "misc"],
-    "player": ["standard", "shooting", "passing", "passing_types", "goal_shot_creation", "defense", "possession", "playing_time", "misc", "keeper", "keeper_adv"],
+    "Team Stats": {
+        "standard": "Standard Stats",
+        "shooting": "Shooting",
+        "passing": "Passing",
+        "defense": "Defense",
+        "possession": "Possession",
+    },
+    "Player Stats": {
+        "standard": "Standard Stats",
+        "shooting": "Shooting",
+        "passing": "Passing",
+        "defense": "Defense",
+        "playing_time": "Playing Time",
+        "keeper": "Goalkeeper",
+    }
 }
-
-# Cache the soccerdata import
-@st.cache_resource
-def get_soccerdata():
-    import soccerdata as sd
-    return sd
-
-# Cache data fetching
-@st.cache_data(ttl=3600, show_spinner=False)
-def fetch_team_stats(leagues, seasons, stat_type):
-    sd = get_soccerdata()
-    fbref = sd.FBref(leagues=leagues, seasons=seasons)
-    return fbref.read_team_season_stats(stat_type=stat_type)
-
-@st.cache_data(ttl=3600, show_spinner=False)
-def fetch_player_stats(leagues, seasons, stat_type):
-    sd = get_soccerdata()
-    fbref = sd.FBref(leagues=leagues, seasons=seasons)
-    return fbref.read_player_season_stats(stat_type=stat_type)
-
-@st.cache_data(ttl=3600, show_spinner=False)
-def fetch_schedule(leagues, seasons):
-    sd = get_soccerdata()
-    fbref = sd.FBref(leagues=leagues, seasons=seasons)
-    return fbref.read_schedule()
-
-def flatten_columns(df):
-    """Flatten multi-level column names."""
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = [' - '.join(str(c) for c in col).strip(' - ') for col in df.columns.values]
-    return df
-
-# Header
-st.markdown("""
-<div class="main-header">
-    <h1>⚽ Football Stats Lab</h1>
-    <p style="color: #8888aa; font-size: 1.2rem;">Fetch statistics for Europe's top 5 leagues</p>
-</div>
-""", unsafe_allow_html=True)
 
 # Sidebar
 with st.sidebar:
-    st.header("⚙️ Settings")
+    st.header("📊 Settings")
     
     # League selection
-    st.subheader("1️⃣ Select Leagues")
-    selected_leagues = st.multiselect(
-        "Choose leagues",
+    selected_league = st.selectbox(
+        "Select League",
         options=list(LEAGUES.keys()),
-        default=["ENG-Premier League"],
-        format_func=lambda x: LEAGUES[x]
+        index=0
     )
     
     # Season selection
-    st.subheader("2️⃣ Select Seasons")
-    selected_seasons = st.multiselect(
-        "Choose seasons",
+    selected_season = st.selectbox(
+        "Select Season",
         options=SEASONS,
-        default=["2324"],
-        format_func=lambda x: SEASON_LABELS[x]
+        format_func=lambda x: SEASON_LABELS[x],
+        index=0
     )
     
     # Data type
-    st.subheader("3️⃣ Data Type")
-    data_type = st.selectbox(
-        "Choose data type",
+    data_type = st.radio(
+        "Data Type",
         options=["Team Stats", "Player Stats", "Schedule"],
         index=0
     )
     
     # Stat type (if applicable)
     if data_type in ["Team Stats", "Player Stats"]:
-        st.subheader("4️⃣ Stat Type")
-        stat_key = "team" if data_type == "Team Stats" else "player"
         stat_type = st.selectbox(
-            "Choose stat type",
-            options=STAT_TYPES[stat_key],
-            index=0,
-            format_func=lambda x: x.replace("_", " ").title()
+            "Stat Type",
+            options=list(STAT_TYPES[data_type].keys()),
+            format_func=lambda x: STAT_TYPES[data_type][x]
         )
     else:
         stat_type = None
+    
+    st.divider()
+    
+    # Fetch button
+    fetch_button = st.button("🔍 Fetch Data", type="primary", use_container_width=True)
+
 
 # Main content
-col1, col2 = st.columns([1, 1])
+@st.cache_data(ttl=3600, show_spinner=False)
+def fetch_data(league_id, season, data_type, stat_type):
+    """Fetch data from FBref"""
+    fbref = sd.FBref(leagues=[league_id], seasons=[season])
+    
+    if data_type == "Team Stats":
+        df = fbref.read_team_season_stats(stat_type=stat_type)
+    elif data_type == "Player Stats":
+        df = fbref.read_player_season_stats(stat_type=stat_type)
+    else:  # Schedule
+        df = fbref.read_schedule()
+    
+    # Flatten multi-index columns
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [' - '.join(str(c) for c in col).strip(' - ') for col in df.columns]
+    
+    return df.reset_index()
 
-with col1:
-    fetch_button = st.button("📥 Fetch Data", use_container_width=True, type="primary")
 
-# Fetch and display data
+# Display data
 if fetch_button:
-    if not selected_leagues:
-        st.error("Please select at least one league")
-    elif not selected_seasons:
-        st.error("Please select at least one season")
-    else:
-        with st.spinner("Fetching data from FBref... This may take a moment."):
-            try:
-                if data_type == "Team Stats":
-                    df = fetch_team_stats(selected_leagues, selected_seasons, stat_type)
-                elif data_type == "Player Stats":
-                    df = fetch_player_stats(selected_leagues, selected_seasons, stat_type)
-                else:
-                    df = fetch_schedule(selected_leagues, selected_seasons)
-                
-                # Flatten columns and reset index
-                df = flatten_columns(df)
-                df = df.reset_index()
-                
-                # Store in session state
-                st.session_state['data'] = df
-                st.session_state['data_type'] = data_type
-                st.session_state['stat_type'] = stat_type
-                
-                st.success(f"✅ Fetched {len(df):,} rows!")
-                
-            except Exception as e:
-                st.error(f"Error fetching data: {str(e)}")
+    league_id = LEAGUES[selected_league]
+    
+    with st.spinner(f"Fetching {data_type.lower()} for {selected_league}..."):
+        try:
+            df = fetch_data(league_id, selected_season, data_type, stat_type)
+            
+            # Stats
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Rows", f"{len(df):,}")
+            with col2:
+                st.metric("Columns", len(df.columns))
+            with col3:
+                st.metric("League", selected_league.split()[0])
+            
+            st.divider()
+            
+            # Data table
+            st.dataframe(df, use_container_width=True, height=500)
+            
+            # Download button
+            csv = df.to_csv(index=False)
+            filename = f"{data_type.lower().replace(' ', '_')}_{selected_season}_{stat_type or 'schedule'}.csv"
+            
+            st.download_button(
+                label="📥 Download CSV",
+                data=csv,
+                file_name=filename,
+                mime="text/csv",
+                type="primary"
+            )
+            
+        except Exception as e:
+            st.error(f"Error fetching data: {str(e)}")
+            st.info("Try selecting a different league/season combination.")
 
-# Display data if available
-if 'data' in st.session_state:
-    df = st.session_state['data']
+else:
+    # Welcome message
+    st.info("👈 Select options in the sidebar and click **Fetch Data** to get started!")
     
-    st.markdown("---")
+    st.markdown("""
+    ### Available Data:
+    - **Team Stats**: Goals, assists, xG, shooting, passing, defense, possession
+    - **Player Stats**: Individual player statistics for the season
+    - **Schedule**: Match fixtures and results
     
-    # Stats
-    col1, col2, col3 = st.columns(3)
-    col1.metric("📊 Rows", f"{len(df):,}")
-    col2.metric("📋 Columns", f"{len(df.columns)}")
-    col3.metric("📁 Data Type", st.session_state.get('data_type', 'N/A'))
-    
-    # Data preview
-    st.subheader("📋 Data Preview")
-    st.dataframe(df.head(100), use_container_width=True, height=400)
-    
-    # Download button
-    csv = df.to_csv(index=False)
-    filename = f"{st.session_state.get('data_type', 'data').lower().replace(' ', '_')}_{st.session_state.get('stat_type', 'stats')}.csv"
-    
-    st.download_button(
-        label="📥 Download CSV",
-        data=csv,
-        file_name=filename,
-        mime="text/csv",
-        use_container_width=True
-    )
+    ### Supported Leagues:
+    🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League | 🇪🇸 La Liga | 🇩🇪 Bundesliga | 🇮🇹 Serie A | 🇫🇷 Ligue 1
+    """)
+
 
 # Footer
 st.markdown("---")
-st.markdown("""
-<div style="text-align: center; color: #555566; padding: 1rem;">
-    Data sourced from <a href="https://fbref.com" target="_blank" style="color: #00ff88;">FBref</a> via the soccerdata package
-</div>
-""", unsafe_allow_html=True)
-
+st.markdown("<p style='text-align: center; color: #555;'>Data from FBref via soccerdata</p>", unsafe_allow_html=True)
