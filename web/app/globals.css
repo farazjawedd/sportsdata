@@ -1,0 +1,153 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: #0a0a0f;
+  color: #f0f0f5;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+header h1 {
+  font-size: 2.5rem;
+  background: linear-gradient(135deg, #00ff88 0%, #00d4aa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.5rem;
+}
+
+header p { color: #888; }
+
+.controls {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+select, button {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+select {
+  background: #1a1a24;
+  border: 1px solid #2a2a3a;
+  color: #f0f0f5;
+}
+
+button {
+  background: linear-gradient(135deg, #00ff88, #00d4aa);
+  border: none;
+  color: #0a0a0f;
+  font-weight: 600;
+}
+
+button:hover { opacity: 0.9; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.stats {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.stat-box {
+  background: #1a1a24;
+  border: 1px solid #2a2a3a;
+  padding: 1rem 2rem;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.stat-box .value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #00ff88;
+}
+
+.stat-box .label {
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 0.25rem;
+}
+
+.table-container {
+  overflow-x: auto;
+  background: #12121a;
+  border-radius: 12px;
+  border: 1px solid #2a2a3a;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th, td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #2a2a3a;
+  white-space: nowrap;
+}
+
+th {
+  background: #1a1a24;
+  color: #888;
+  font-weight: 500;
+  position: sticky;
+  top: 0;
+}
+
+tr:hover td { background: #1a1a24; }
+
+.download-btn {
+  display: block;
+  width: fit-content;
+  margin: 1.5rem auto 0;
+  background: #1a1a24;
+  border: 1px solid #00ff88;
+  color: #00ff88;
+}
+
+.download-btn:hover { background: rgba(0, 255, 136, 0.1); }
+
+.meta {
+  text-align: center;
+  margin-top: 2rem;
+  color: #555;
+  font-size: 0.85rem;
+}
+
+.loading {
+  text-align: center;
+  padding: 3rem;
+  color: #888;
+}
+
+.error {
+  background: rgba(255, 100, 100, 0.1);
+  border: 1px solid rgba(255, 100, 100, 0.3);
+  color: #ff6464;
+  padding: 1rem;
+  border-radius: 8px;
+  text-align: center;
+  margin: 1rem 0;
+}
+
