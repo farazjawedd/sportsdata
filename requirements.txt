@@ -1,5 +1,5 @@
-streamlit>=1.30.0
-soccerdata>=1.5.0
-pandas>=2.0.0
-lxml>=4.6,<5.0
-requests>=2.28.0
+streamlit
+soccerdata
+pandas
+lxml
+requests
