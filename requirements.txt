@@ -1,6 +1,5 @@
-flask==3.0.0
-gunicorn==21.2.0
-soccerdata==1.5.1
-pandas==2.1.4
+streamlit>=1.30.0
+soccerdata>=1.5.0
+pandas>=2.0.0
 lxml>=4.6,<5.0
 requests>=2.28.0
